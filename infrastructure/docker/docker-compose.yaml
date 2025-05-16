@@ -1,0 +1,105 @@
+version: "3.8"
+
+services:
+  app:
+    image: 'open-weather:latest'
+    build:
+      context: ../..
+    ports:
+      - "9595-9597:8080"
+    deploy:
+      mode: replicated
+      replicas: 3
+    networks:
+      - open-weather-network
+    environment:
+      - "WEATHER_STACK_API_KEY=${WEATHER_STACK_API_KEY}"
+      - "SPRING_PROFILES_ACTIVE=test"
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ../observerbility/metrics/prometheus/config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - open-weather-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - grafana-storage:/var/lib/grafana
+      - ../observerbility/metrics/grafana/provisioning/datasources/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+      - ../observerbility/metrics/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ../observerbility/metrics/grafana/provisioning/dashboards/json:/etc/grafana/provisioning/dashboards/json
+    depends_on:
+      - prometheus
+    #  - loki
+    networks:
+      - open-weather-network
+
+  loki:
+    image: grafana/loki:2.8.0
+    container_name: loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ../observerbility/logs/loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki-data:/tmp/loki
+    networks:
+      - open-weather-network
+
+  zipkin:
+    image: openzipkin/zipkin
+    container_name: zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - open-weather-network
+
+
+  nexus:
+    image: sonatype/nexus3
+    container_name: nexus
+    ports:
+      - "8081:8081"
+    volumes:
+      - nexus-data:/nexus-data
+
+  argocd-server:
+    image: argoproj/argocd
+    container_name: argocd
+    ports:
+      - "8080:8080"
+    command: [ "argocd-server" ]
+    depends_on:
+      - argocd-repo-server
+    volumes:
+      - argocd-data:/data
+
+  argocd-repo-server:
+    image: argoproj/argocd
+    container_name: argocd-repo-server
+    command: [ "argocd-repo-server" ]
+    volumes:
+      - argocd-data:/data
+
+
+volumes:
+  grafana-storage:
+  loki-data:
+  nexus-data:
+  argocd-data:
+
+networks:
+  open-weather-network:
+    driver: bridge
+

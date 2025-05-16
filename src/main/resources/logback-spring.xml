@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="false">
+
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- Ortama özel profil ayarı -->
+    <springProperty name="appName" source="spring.application.name" defaultValue="open-weather"/>
+    <springProperty name="env" source="spring.profiles.active" defaultValue="default"/>
+
+    <!-- Console Appender (JSON format for Loki) -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <fieldNames>
+                <timestamp>timestamp</timestamp>
+                <level>level</level>
+                <thread>thread</thread>
+                <logger>logger</logger>
+                <message>message</message>
+                <context>context</context>
+                <exception>exception</exception>
+            </fieldNames>
+            <customFields>{"appName":"${appName}", "environment":"${env}"}</customFields>
+            <includeMdcKeyName>traceId</includeMdcKeyName>
+            <includeMdcKeyName>spanId</includeMdcKeyName>
+        </encoder>
+    </appender>
+
+    <!-- File Appender (for persistent logging) -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/${appName}-${env}.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/${appName}-${env}.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>14</maxHistory>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <customFields>{"appName":"${appName}", "environment":"${env}"}</customFields>
+            <includeMdcKeyName>traceId</includeMdcKeyName>
+            <includeMdcKeyName>spanId</includeMdcKeyName>
+        </encoder>
+    </appender>
+
+    <!-- Ortama göre log seviyesi -->
+    <springProfile name="dev">
+        <root level="DEBUG">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="FILE"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="test">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="FILE"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="prod">
+        <root level="WARN">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="FILE"/>
+        </root>
+    </springProfile>
+
+    <!-- Varsayılan profil -->
+    <springProfile name="default">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="FILE"/>
+        </root>
+    </springProfile>
+
+</configuration>

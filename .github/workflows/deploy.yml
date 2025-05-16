@@ -1,0 +1,29 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Kod deposunu klonla
+        uses: actions/checkout@v2
+
+      - name: Docker imajını oluştur ve Nexus'a gönder
+        run: |
+          docker build -t localhost:8081/repository/docker-repo/spring-boot-app:latest .
+          echo "${{ secrets.NEXUS_PASSWORD }}" | docker login localhost:8081 -u ${{ secrets.NEXUS_USERNAME }} --password-stdin
+          docker push localhost:8081/repository/docker-repo/spring-boot-app:latest
+
+      - name: Helm chart'ı paketle ve Nexus'a gönder
+        run: |
+          helm package spring-boot-chart
+          curl -u ${{ secrets.NEXUS_USERNAME }}:${{ secrets.NEXUS_PASSWORD }} --upload-file spring-boot-chart-0.1.0.tgz http://localhost:8081/repository/helm-repo/
+
+      - name: Argo CD'yi tetikle
+        run: |
+          curl -X POST http://localhost:8080/api/v1/applications/spring-boot-app/sync

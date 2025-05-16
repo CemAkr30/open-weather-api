@@ -1,6 +1,8 @@
 spring:
   application:
     name: open-weather-api
+  profiles:
+    active: dev
   datasource:
     driverClassName: org.h2.Driver
     url: jdbc:h2:mem:weatherdb
@@ -11,15 +13,33 @@ spring:
   h2:
     console:
       enabled: true
-
+  jackson:
+    property-naming-strategy: SNAKE_CASE
 
 management:
+  endpoint:
+    health:
+      show-details: always
+    prometheus:
+      access: unrestricted
+  tracing:
+    sampling:
+      probability: 1.0
   endpoints:
     web:
       exposure:
         include:
           - "*"
           - prometheus
+
+logging:
+  level:
+    root: INFO
+    org.springframework.web: INFO
+    com.open.weather.api: DEBUG
+  pattern:
+    console: ""
+
 
 weather-stack:
   api-url: http://api.weatherstack.com/current
